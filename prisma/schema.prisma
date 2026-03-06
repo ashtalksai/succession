@@ -1,0 +1,107 @@
+// Succession — Prisma Schema
+// Database: Shared Postgres (k80c0s08c84kgcs44kckcos0)
+// Schema: succession
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business  Business?
+  sessions  Session[]
+
+  @@map("users")
+}
+
+model Business {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  name         String
+  industry     String   // manufacturing | retail | service | other
+  revenue      String?  // revenue range
+  yearsInBiz   Int?
+  description  String?
+  ownerName    String?
+  ownerRole    String?
+  exitTimeline String?  // 6-months | 1-year | 2-years | exploring
+
+  shareToken   String   @unique @default(cuid())
+
+  sessions     Session[]
+  document     Document?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@map("businesses")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessId String
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  sessionNum Int      // 1-5
+  topic      String?  // e.g., "Vendors & Suppliers"
+  audioUrl   String?  // R2 storage URL
+  duration   Int?     // duration in seconds
+  transcript String?  // raw transcript
+  extracted  Json?    // structured sections from GPT-4o
+
+  status     String   @default("pending") // pending | recording | transcribing | extracting | complete
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("sessions")
+}
+
+model Document {
+  id          String   @id @default(cuid())
+  businessId  String   @unique
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  // 8 sections
+  overview       Json?   // Business Overview
+  customers      Json?   // Key Customers
+  operations     Json?   // Operations
+  vendors        Json?   // Vendors & Suppliers
+  finances       Json?   // Finances
+  staff          Json?   // Key Staff
+  risks          Json?   // Risks & Gotchas
+  transition     Json?   // Transition Guidance
+
+  pdfUrl         String? // R2 storage URL
+  generatedAt    DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("documents")
+}
+
+model StripeCustomer {
+  id               String @id @default(cuid())
+  userId           String @unique
+  stripeCustomerId String @unique
+  plan             String? // transition | full_extraction
+  status           String? // active | canceled | past_due
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("stripe_customers")
+}
